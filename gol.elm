@@ -5,24 +5,24 @@ import Html.App as Html
 import Html.Attributes exposing(..)
 import Html.Events exposing (onInput, onClick)
 import Time exposing(..)
+import String exposing(toInt)
 --import Debug exposing(..)
 
 type alias Model = 
   { board : List Int
   , running : Bool
+  , gridSize : Int
   }
 
 type Msg =
     Toggle Int
   | PlayPause
   | Tick Time
-
-gridSize : Int
-gridSize = 100
+  | ChangeSize String
 
 main : Program Never
 main = Html.program
-  { init   = init gridSize
+  { init   = init 10
   , update = update
   , view   = view
   , subscriptions = subscriptions
@@ -32,12 +32,15 @@ init : Int -> (Model, Cmd Msg)
 init n =  
   ( { board = List.repeat (n*n) 0
     , running = False
+    , gridSize = n
     } 
   , Cmd.none) 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    ChangeSize stSize ->
+      (init (parseSize stSize))
     Toggle indexTarget ->
       let 
         toggle index val =
@@ -50,16 +53,31 @@ update msg model =
     PlayPause ->
       ({model | running = not model.running}, Cmd.none)
     Tick time ->
-      ({model | board = updateBoard model.board}, Cmd.none)
+      ({model | board = updateBoard model}, Cmd.none)
 
-updateBoard : List Int -> List Int
-updateBoard board =
+parseSize stSize =
   let
+    maybe = Result.toMaybe (String.toInt stSize)
+  in
+    case maybe of
+      Nothing -> 10
+      Just val -> 
+        if (val > 100)
+        then 100
+        else 
+          if (val < 0)
+          then 0
+          else val
+
+updateBoard : Model -> List Int
+updateBoard model =
+  let
+    board = model.board
     countAliveNeighbors index = 
-      neighbors board (index-102) 3 +
+      neighbors board (index-(model.gridSize+2)) 3 +
       neighbors board (index-2) 1 +
       neighbors board index 1 +
-      neighbors board (index+98) 3
+      neighbors board (index+model.gridSize-2) 3
     
     toggle index val =
       let 
@@ -98,6 +116,7 @@ view model =
     div[]
       [ h1 [] [ text "Conway's Game of Life" ]
       , button [ onClick PlayPause ] [ text buttonText ]
+      , input [onInput ChangeSize, type' "number", placeholder "size: default 10, max 100"] [ ]
       , div[ class "grid", gridDim model ] (List.indexedMap viewCell model.board) 
       ]
 
@@ -108,7 +127,7 @@ gridDim model =
   , ("height", gridDimAsString model) ]
 
 gridDimAsString model =
-  (toString (toFloat (List.length model.board*10)/(toFloat gridSize)) ++ "px")
+  (toString (toFloat (List.length model.board*10)/(toFloat model.gridSize)) ++ "px")
 
 viewCell : Int -> Int -> Html Msg
 viewCell index val =
