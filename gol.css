@@ -1,0 +1,10 @@
+.cell {
+  border: 1px solid #eee;
+  width: 8px;
+  height: 8px;
+  float: left;
+}
+
+.grid {
+  border: 1px solid #999;
+}
