@@ -8106,11 +8106,10 @@ var _RobertWalter83$elm_gol$Gol$gridDimAsString = function (model) {
 	return A2(
 		_elm_lang$core$Basics_ops['++'],
 		_elm_lang$core$Basics$toString(
-			_elm_lang$core$Basics$toFloat(
-				_elm_lang$core$List$length(model.board) * 10) / _elm_lang$core$Basics$toFloat(model.gridSize)),
+			_elm_lang$core$Array$length(model.board) * 10),
 		'px');
 };
-var _RobertWalter83$elm_gol$Gol$gridDim = function (model) {
+var _RobertWalter83$elm_gol$Gol$gridStyle = function (model) {
 	return _elm_lang$html$Html_Attributes$style(
 		_elm_lang$core$Native_List.fromArray(
 			[
@@ -8126,49 +8125,102 @@ var _RobertWalter83$elm_gol$Gol$gridDim = function (model) {
 			}
 			]));
 };
-var _RobertWalter83$elm_gol$Gol$neighbors = F3(
-	function (board, startIndex, range) {
-		var endIndex = startIndex + range;
-		return (_elm_lang$core$Native_Utils.cmp(endIndex, 0) < 0) ? 0 : A3(
-			_elm_lang$core$List$foldr,
-			F2(
-				function (x, y) {
-					return x + y;
-				}),
+var _RobertWalter83$elm_gol$Gol$getValue = F2(
+	function (index, row) {
+		return A2(
+			_elm_lang$core$Maybe$withDefault,
 			0,
-			A2(
-				_elm_lang$core$List$take,
-				range,
-				A2(_elm_lang$core$List$drop, startIndex + 1, board)));
+			A2(_elm_lang$core$Array$get, index, row));
+	});
+var _RobertWalter83$elm_gol$Gol$count = F2(
+	function (iCell, row) {
+		var right = A2(_RobertWalter83$elm_gol$Gol$getValue, iCell + 1, row);
+		var mid = A2(_RobertWalter83$elm_gol$Gol$getValue, iCell, row);
+		var left = A2(_RobertWalter83$elm_gol$Gol$getValue, iCell - 1, row);
+		return (left + mid) + right;
+	});
+var _RobertWalter83$elm_gol$Gol$countLivingNeighbors = F2(
+	function (_p0, board) {
+		var _p1 = _p0;
+		var _p7 = _p1._0;
+		var _p6 = _p1._1;
+		var mbRowBelow = A2(_elm_lang$core$Array$get, _p7 + 1, board);
+		var bottom = function () {
+			var _p2 = mbRowBelow;
+			if (_p2.ctor === 'Nothing') {
+				return 0;
+			} else {
+				return A2(_RobertWalter83$elm_gol$Gol$count, _p6, _p2._0);
+			}
+		}();
+		var mbRow = A2(_elm_lang$core$Array$get, _p7, board);
+		var left = function () {
+			var _p3 = mbRow;
+			if (_p3.ctor === 'Nothing') {
+				return 0;
+			} else {
+				return A2(_RobertWalter83$elm_gol$Gol$getValue, _p6 - 1, _p3._0);
+			}
+		}();
+		var right = function () {
+			var _p4 = mbRow;
+			if (_p4.ctor === 'Nothing') {
+				return 0;
+			} else {
+				return A2(_RobertWalter83$elm_gol$Gol$getValue, _p6 + 1, _p4._0);
+			}
+		}();
+		var mbRowAbove = A2(_elm_lang$core$Array$get, _p7 - 1, board);
+		var top = function () {
+			var _p5 = mbRowAbove;
+			if (_p5.ctor === 'Nothing') {
+				return 0;
+			} else {
+				return A2(_RobertWalter83$elm_gol$Gol$count, _p6, _p5._0);
+			}
+		}();
+		return ((top + bottom) + left) + right;
 	});
 var _RobertWalter83$elm_gol$Gol$updateBoard = function (model) {
 	var board = model.board;
-	var countAliveNeighbors = function (index) {
-		return ((A3(_RobertWalter83$elm_gol$Gol$neighbors, board, index - (model.gridSize + 2), 3) + A3(_RobertWalter83$elm_gol$Gol$neighbors, board, index - 2, 1)) + A3(_RobertWalter83$elm_gol$Gol$neighbors, board, index, 1)) + A3(_RobertWalter83$elm_gol$Gol$neighbors, board, (index + model.gridSize) - 2, 3);
-	};
-	var toggle = F2(
-		function (index, val) {
-			var aliveNeighbors = countAliveNeighbors(index);
-			return _elm_lang$core$Native_Utils.eq(val, 0) ? (_elm_lang$core$Native_Utils.eq(aliveNeighbors, 3) ? 1 : 0) : (((_elm_lang$core$Native_Utils.cmp(aliveNeighbors, 2) < 0) || (_elm_lang$core$Native_Utils.cmp(aliveNeighbors, 3) > 0)) ? 0 : 1);
+	var iterateRows = F2(
+		function (iRow, row) {
+			var iterateCells = F2(
+				function (iCell, val) {
+					var aliveNeighbors = A2(
+						_RobertWalter83$elm_gol$Gol$countLivingNeighbors,
+						{ctor: '_Tuple2', _0: iRow, _1: iCell},
+						board);
+					return _elm_lang$core$Native_Utils.eq(val, 0) ? (_elm_lang$core$Native_Utils.eq(aliveNeighbors, 3) ? 1 : 0) : (((_elm_lang$core$Native_Utils.cmp(aliveNeighbors, 2) < 0) || (_elm_lang$core$Native_Utils.cmp(aliveNeighbors, 3) > 0)) ? 0 : 1);
+				});
+			return A2(_elm_lang$core$Array$indexedMap, iterateCells, row);
 		});
-	return A2(_elm_lang$core$List$indexedMap, toggle, board);
+	return A2(_elm_lang$core$Array$indexedMap, iterateRows, board);
 };
+var _RobertWalter83$elm_gol$Gol$crop = F3(
+	function (min, max, val) {
+		return A2(
+			_elm_lang$core$Basics$max,
+			min,
+			A2(_elm_lang$core$Basics$min, max, val));
+	});
 var _RobertWalter83$elm_gol$Gol$parseSize = function (stSize) {
-	var maybe = _elm_lang$core$Result$toMaybe(
+	var mbSize = _elm_lang$core$Result$toMaybe(
 		_elm_lang$core$String$toInt(stSize));
-	var _p0 = maybe;
-	if (_p0.ctor === 'Nothing') {
-		return 10;
-	} else {
-		var _p1 = _p0._0;
-		return (_elm_lang$core$Native_Utils.cmp(_p1, 100) > 0) ? 100 : ((_elm_lang$core$Native_Utils.cmp(_p1, 0) < 0) ? 0 : _p1);
-	}
+	return A3(
+		_RobertWalter83$elm_gol$Gol$crop,
+		10,
+		100,
+		A2(_elm_lang$core$Maybe$withDefault, 10, mbSize));
 };
 var _RobertWalter83$elm_gol$Gol$init = function (n) {
 	return {
 		ctor: '_Tuple2',
 		_0: {
-			board: A2(_elm_lang$core$List$repeat, n * n, 0),
+			board: A2(
+				_elm_lang$core$Array$repeat,
+				n,
+				A2(_elm_lang$core$Array$repeat, n, 0)),
 			running: false,
 			gridSize: n
 		},
@@ -8177,22 +8229,33 @@ var _RobertWalter83$elm_gol$Gol$init = function (n) {
 };
 var _RobertWalter83$elm_gol$Gol$update = F2(
 	function (msg, model) {
-		var _p2 = msg;
-		switch (_p2.ctor) {
+		var _p8 = msg;
+		switch (_p8.ctor) {
 			case 'ChangeSize':
 				return _RobertWalter83$elm_gol$Gol$init(
-					_RobertWalter83$elm_gol$Gol$parseSize(_p2._0));
+					_RobertWalter83$elm_gol$Gol$parseSize(_p8._0));
 			case 'Toggle':
-				var toggle = F2(
-					function (index, val) {
-						return _elm_lang$core$Native_Utils.eq(_p2._0, index) ? A2(_elm_lang$core$Basics_ops['%'], val + 1, 2) : val;
-					});
+				var _p10 = _p8._0._1;
+				var _p9 = _p8._0._0;
+				var row = A2(
+					_elm_lang$core$Maybe$withDefault,
+					_elm_lang$core$Array$empty,
+					A2(_elm_lang$core$Array$get, _p10, model.board));
+				var val = A2(
+					_elm_lang$core$Maybe$withDefault,
+					0,
+					A2(_elm_lang$core$Array$get, _p9, row));
+				var newRow = A3(
+					_elm_lang$core$Array$set,
+					_p9,
+					A2(_elm_lang$core$Basics_ops['%'], val + 1, 2),
+					row);
 				return {
 					ctor: '_Tuple2',
 					_0: _elm_lang$core$Native_Utils.update(
 						model,
 						{
-							board: A2(_elm_lang$core$List$indexedMap, toggle, model.board)
+							board: A3(_elm_lang$core$Array$set, _p10, newRow, model.board)
 						}),
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
@@ -8235,24 +8298,34 @@ var _RobertWalter83$elm_gol$Gol$PlayPause = {ctor: 'PlayPause'};
 var _RobertWalter83$elm_gol$Gol$Toggle = function (a) {
 	return {ctor: 'Toggle', _0: a};
 };
-var _RobertWalter83$elm_gol$Gol$viewCell = F2(
-	function (index, val) {
-		var color = _elm_lang$core$Native_Utils.eq(val, 1) ? '#000' : '#fff';
+var _RobertWalter83$elm_gol$Gol$viewRow = F2(
+	function (iRow, row) {
+		var viewCell = F2(
+			function (iCell, val) {
+				var color = _elm_lang$core$Native_Utils.eq(val, 1) ? '#000' : '#fff';
+				return A2(
+					_elm_lang$html$Html$div,
+					_elm_lang$core$Native_List.fromArray(
+						[
+							_elm_lang$html$Html_Attributes$class('cell'),
+							_elm_lang$html$Html_Attributes$style(
+							_elm_lang$core$Native_List.fromArray(
+								[
+									{ctor: '_Tuple2', _0: 'background', _1: color}
+								])),
+							_elm_lang$html$Html_Events$onClick(
+							_RobertWalter83$elm_gol$Gol$Toggle(
+								{ctor: '_Tuple2', _0: iCell, _1: iRow}))
+						]),
+					_elm_lang$core$Native_List.fromArray(
+						[]));
+			});
 		return A2(
 			_elm_lang$html$Html$div,
 			_elm_lang$core$Native_List.fromArray(
-				[
-					_elm_lang$html$Html_Attributes$class('cell'),
-					_elm_lang$html$Html_Attributes$style(
-					_elm_lang$core$Native_List.fromArray(
-						[
-							{ctor: '_Tuple2', _0: 'background', _1: color}
-						])),
-					_elm_lang$html$Html_Events$onClick(
-					_RobertWalter83$elm_gol$Gol$Toggle(index))
-				]),
-			_elm_lang$core$Native_List.fromArray(
-				[]));
+				[]),
+			_elm_lang$core$Array$toList(
+				A2(_elm_lang$core$Array$indexedMap, viewCell, row)));
 	});
 var _RobertWalter83$elm_gol$Gol$view = function (model) {
 	var buttonText = model.running ? 'pause' : 'play';
@@ -8286,7 +8359,7 @@ var _RobertWalter83$elm_gol$Gol$view = function (model) {
 					[
 						_elm_lang$html$Html_Events$onInput(_RobertWalter83$elm_gol$Gol$ChangeSize),
 						_elm_lang$html$Html_Attributes$type$('number'),
-						_elm_lang$html$Html_Attributes$placeholder('size: default 10, max 100')
+						_elm_lang$html$Html_Attributes$placeholder('10 <= size <= 100')
 					]),
 				_elm_lang$core$Native_List.fromArray(
 					[])),
@@ -8295,9 +8368,10 @@ var _RobertWalter83$elm_gol$Gol$view = function (model) {
 				_elm_lang$core$Native_List.fromArray(
 					[
 						_elm_lang$html$Html_Attributes$class('grid'),
-						_RobertWalter83$elm_gol$Gol$gridDim(model)
+						_RobertWalter83$elm_gol$Gol$gridStyle(model)
 					]),
-				A2(_elm_lang$core$List$indexedMap, _RobertWalter83$elm_gol$Gol$viewCell, model.board))
+				_elm_lang$core$Array$toList(
+					A2(_elm_lang$core$Array$indexedMap, _RobertWalter83$elm_gol$Gol$viewRow, model.board)))
 			]));
 };
 var _RobertWalter83$elm_gol$Gol$main = {

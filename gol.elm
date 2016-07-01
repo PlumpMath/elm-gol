@@ -6,19 +6,22 @@ import Html.Attributes exposing(..)
 import Html.Events exposing (onInput, onClick)
 import Time exposing(..)
 import String exposing(toInt)
---import Debug exposing(..)
+import Array exposing(..)
+
 
 type alias Model = 
-  { board : List Int
+  { board : Array (Array Int)
   , running : Bool
   , gridSize : Int
   }
 
+
 type Msg =
-    Toggle Int
+    Toggle (Int, Int)
   | PlayPause
   | Tick Time
   | ChangeSize String
+
 
 main : Program Never
 main = Html.program
@@ -28,82 +31,116 @@ main = Html.program
   , subscriptions = subscriptions
   }
 
+
 init : Int -> (Model, Cmd Msg)
 init n =  
-  ( { board = List.repeat (n*n) 0
+  ( { board = Array.repeat n (Array.repeat n 0)
     , running = False
     , gridSize = n
     } 
   , Cmd.none) 
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ChangeSize stSize ->
       (init (parseSize stSize))
-    Toggle indexTarget ->
+    Toggle (iCell, iRow) ->
       let 
-        toggle index val =
-          if (indexTarget == index) then
-            (val + 1) % 2
-          else
-            val
+        row = Maybe.withDefault Array.empty <| Array.get iRow model.board  
+        val = Maybe.withDefault 0 <| Array.get iCell row
+        newRow = Array.set iCell ((val + 1) % 2) row
       in
-        ({model | board = (List.indexedMap toggle model.board)}, Cmd.none)
+        ({model | board = Array.set iRow newRow model.board}, Cmd.none)
     PlayPause ->
       ({model | running = not model.running}, Cmd.none)
     Tick time ->
       ({model | board = updateBoard model}, Cmd.none)
+      
 
+parseSize : String -> Int
 parseSize stSize =
   let
-    maybe = Result.toMaybe (String.toInt stSize)
+    mbSize = Result.toMaybe (String.toInt stSize)
   in
-    case maybe of
-      Nothing -> 10
-      Just val -> 
-        if (val > 100)
-        then 100
-        else 
-          if (val < 0)
-          then 0
-          else val
+    Maybe.withDefault 10 mbSize |> crop 10 100
 
-updateBoard : Model -> List Int
+        
+crop : Int -> Int -> Int -> Int
+crop min max val =
+  Basics.max min (Basics.min max val) 
+
+
+updateBoard : Model -> Array (Array Int)
 updateBoard model =
   let
     board = model.board
-    countAliveNeighbors index = 
-      neighbors board (index-(model.gridSize+2)) 3 +
-      neighbors board (index-2) 1 +
-      neighbors board index 1 +
-      neighbors board (index+model.gridSize-2) 3
-    
-    toggle index val =
+    iterateRows iRow row =
       let 
-        aliveNeighbors = countAliveNeighbors index
-      in
-        if (val==0)
-        then 
-          if (aliveNeighbors == 3)
-          then 1
-          else 0
-        else
-          if (aliveNeighbors < 2 || aliveNeighbors > 3)
-          then 0
-          else 1
+        iterateCells iCell val = 
+          let
+            aliveNeighbors = countLivingNeighbors (iRow, iCell) board
+          in
+            if (val==0)
+            then 
+              if (aliveNeighbors == 3)
+              then 1
+              else 0
+            else
+              if (aliveNeighbors < 2 || aliveNeighbors > 3)
+              then 0
+              else 1
+      in 
+        Array.indexedMap iterateCells row
   in
-    List.indexedMap toggle board
+    Array.indexedMap iterateRows board
 
-neighbors : List Int -> Int -> Int -> Int
-neighbors board startIndex range  =
+
+countLivingNeighbors : (Int, Int) -> (Array (Array Int)) -> Int
+countLivingNeighbors (iRow, iCell) board =
   let
-    endIndex = startIndex + range
+    mbRowAbove = Array.get (iRow-1) board
+    mbRow = Array.get iRow board
+    mbRowBelow = Array.get (iRow+1) board
+
+    top = 
+      case mbRowAbove of
+        Nothing -> 0
+        Just rowAbove -> count iCell rowAbove
+
+    bottom =
+      case mbRowBelow of
+        Nothing -> 0
+        Just rowBelow -> count iCell rowBelow
+
+    left =
+      case mbRow of
+        Nothing -> 0
+        Just row -> getValue (iCell-1) row
+
+    right =
+      case mbRow of
+        Nothing -> 0
+        Just row -> getValue (iCell+1) row
   in
-    if (endIndex < 0)
-    then 0
-    else
-      List.foldr (+) 0 (List.take range (List.drop (startIndex+1) board))
+    top + bottom + left + right
+
+
+count : Int -> Array Int -> Int
+count iCell row =
+  let
+    left = getValue (iCell-1) row
+    mid = getValue iCell row
+    right = getValue (iCell+1) row
+  in
+    left + mid + right
+
+
+getValue : Int -> Array Int -> Int
+getValue index row =
+  Maybe.withDefault 0 <| Array.get index row
+
 
 view : Model -> Html Msg
 view model =
@@ -116,28 +153,39 @@ view model =
     div[]
       [ h1 [] [ text "Conway's Game of Life" ]
       , button [ onClick PlayPause ] [ text buttonText ]
-      , input [onInput ChangeSize, type' "number", placeholder "size: default 10, max 100"] [ ]
-      , div[ class "grid", gridDim model ] (List.indexedMap viewCell model.board) 
+      , input [onInput ChangeSize, type' "number", placeholder "10 <= size <= 100"] [ ]
+      , div[ class "grid", gridStyle model ] (Array.toList (Array.indexedMap viewRow model.board))
       ]
 
-gridDim : Model -> Attribute a
-gridDim model =
+
+gridStyle : Model -> Attribute a
+gridStyle model =
   style 
   [ ("width",  gridDimAsString model)
   , ("height", gridDimAsString model) ]
 
+
+gridDimAsString : Model -> String
 gridDimAsString model =
-  (toString (toFloat (List.length model.board*10)/(toFloat model.gridSize)) ++ "px")
+  (toString (Array.length model.board*10) ++ "px")
 
-viewCell : Int -> Int -> Html Msg
-viewCell index val =
+
+viewRow : Int -> Array Int -> Html Msg
+viewRow iRow row =
   let
-    color = if(val==1) then "#000" else "#fff"
+    viewCell iCell val =
+      let
+        color = if(val==1) then "#000" else "#fff"
+      in
+        div [ class "cell", style [("background", color)], onClick (Toggle (iCell, iRow)) ] []
   in
-    div [ class "cell", style [("background", color)], onClick (Toggle index) ] []
+    div[] (Array.toList (Array.indexedMap viewCell row))
+     
 
-
+subscriptions : Model -> Sub Msg
 subscriptions model =
   if (model.running)
   then Time.every (0.1*second) Tick
   else Sub.none
+
+
